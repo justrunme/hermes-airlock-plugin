@@ -12,9 +12,9 @@ This is a loadable plugin (`plugin.yaml` plus `register(ctx)`). It is not a prom
 
 ## Demo
 
-[![30-second demo: VERIFIED echo, then BLOCKED curl](docs/img/demo-thumb.jpg)](docs/video/airlock-sandbox-demo.mp4)
+[![30-second demo: VERIFIED echo, then BLOCKED curl](docs/img/demo-thumb.jpg)](https://github.com/justrunme/hermes-airlock-plugin/blob/main/docs/video/airlock-sandbox-demo.mp4)
 
-A short recording of the plugin calling the live Airlock demo: `echo` comes back VERIFIED, `curl` is BLOCKED. The file is [docs/video/airlock-sandbox-demo.mp4](docs/video/airlock-sandbox-demo.mp4) (~30 seconds). The voiceover is TTS, not my voice.
+A short recording of the plugin calling the live Airlock demo: `echo` comes back VERIFIED, `curl` is BLOCKED. Open [the demo on GitHub](https://github.com/justrunme/hermes-airlock-plugin/blob/main/docs/video/airlock-sandbox-demo.mp4) to play it (~30 seconds). The voiceover is TTS, not my voice.
 
 ## Install
 
