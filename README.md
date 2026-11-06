@@ -1,15 +1,14 @@
 # airlock-sandbox
 
-I built this Hermes Agent plugin so my terminal, `execute_code`, and file-tool
-commands run through [Airlock](https://github.com/justrunme/airlock) instead of
-on my host. Airlock's policy engine decides allow or deny. Allowed code runs in
-Airlock's disposable Docker sandbox. Every decision comes back with a signed
-receipt I can check (RFC 8785 JCS, SHA-256, Ed25519, `prev_hash` chain), surfaced
-as **BLOCKED** / **ALLOWED** / **VERIFIED**.
+[![License: MIT](https://img.shields.io/badge/license-MIT-0b1220)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)](pyproject.toml)
+[![Hermes >=0.21.6](https://img.shields.io/badge/Hermes-%3E%3D0.21.6-5b4b8a)](https://github.com/NousResearch/hermes-agent)
 
-This is a real loadable plugin (`plugin.yaml` + `register(ctx)`), not a prompt
-wrapper or skill. It hooks Hermes through the official terminal environment
-provider seam: `ctx.register_terminal_environment_provider(...)`.
+![Hermes sends a command through this plugin into Airlock, which returns a signed receipt](docs/img/banner.jpg)
+
+A Hermes Agent terminal backend. Terminal, `execute_code`, and file-tool commands leave Hermes through this plugin, hit my [Airlock](https://github.com/justrunme/airlock) HTTP API, and come back as **BLOCKED**, **ALLOWED**, or **VERIFIED**. Airlock's policy engine decides allow or deny. Allowed code runs in Airlock's disposable Docker sandbox, not on the Hermes host. Every decision includes a signed receipt (RFC 8785 JCS, SHA-256, Ed25519, `prev_hash` chain).
+
+This is a loadable plugin (`plugin.yaml` plus `register(ctx)`). It is not a prompt wrapper or a skill. It hooks Hermes through the official terminal environment provider seam: `ctx.register_terminal_environment_provider(...)`.
 
 ## Install
 
@@ -49,7 +48,7 @@ I never open `.env` or Hermes `auth.json` myself.
    `execute_code`, and file tools through my `AirlockEnvironment.execute()`.
 4. Each command is posted to Airlock `POST /api/arena`. On allow, Airlock runs it
    in its sandbox. On deny, nothing starts there.
-5. I verify the receipt (canonical JSON → SHA-256 → Ed25519) and print status
+5. I verify the receipt (canonical JSON, then SHA-256, then Ed25519) and print status
    lines: `BLOCKED`, `ALLOWED`, or `VERIFIED`.
 6. Hermes dangerous-command approvals stay on (`skip_container_guards = False`).
    Airlock is an extra fail-closed gate, not a bypass.
@@ -74,7 +73,36 @@ I never open `.env` or Hermes `auth.json` myself.
 | Policy deny | `BLOCKED` (+ `VERIFIED` if receipt checks out) |
 | Tampered / wrong-key receipt | `BLOCKED` / `INVALID RECEIPT`, output discarded |
 
-## Develop / test
+## Tests
+
+`pytest` covers the fail-closed paths with mocked HTTP (8 tests): Airlock down,
+`/healthz` not ok, policy deny, and a tampered or wrong-key receipt.
+
+I also ran `AirlockEnvironment.execute()` against the public demo at
+`https://45-77-141-253.sslip.io`:
+
+```text
+$ execute "echo hermes-plugin-live-ok"
+[VERIFIED] airlock-sandbox
+verdict=allow status=executed
+reason=Safe pattern
+receipt_verified=true
+hermes-plugin-live-ok
+exit 0
+
+$ execute "curl -s https://example.com"
+[BLOCKED] airlock-sandbox
+verdict=deny status=blocked
+reason=Forbidden binary curl
+rules=R-BIN-CURL
+VERIFIED: receipt hash + Ed25519 signature OK
+exit 126
+```
+
+I have not yet run `hermes plugins validate` or loaded the plugin inside a
+running Hermes process. The `hermes-agent` package on PyPI is still `0.19.0`;
+this plugin needs Hermes `>=0.21.6`. That install-and-load check is still
+outstanding before a catalog PR.
 
 ```bash
 pip install -e .
@@ -87,4 +115,4 @@ Sample catalog entry (SHA placeholder): `catalog/airlock-sandbox.yaml`.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT. See `LICENSE`.
