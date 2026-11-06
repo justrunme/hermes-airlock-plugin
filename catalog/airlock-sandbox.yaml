@@ -1,10 +1,10 @@
 # Sample Hermes plugin-catalog entry for airlock-sandbox.
 # Copy to NousResearch/hermes-agent plugin-catalog/ after you publish a pin.
-# Replace REPLACE_WITH_40_CHAR_COMMIT_SHA with the full commit SHA you submit.
+# Replace 86d342dace0280fcd867b3e135c0aa428a4c3c93 with the full commit SHA you submit.
 name: airlock-sandbox
 title: Airlock Sandbox
 repo: https://github.com/justrunme/hermes-airlock-plugin
-sha: REPLACE_WITH_40_CHAR_COMMIT_SHA
+sha: 86d342dace0280fcd867b3e135c0aa428a4c3c93
 subdir: ""
 description: >-
   Terminal backend that routes Hermes command execution through an external Airlock
@@ -20,6 +20,7 @@ tier: community
 category: tools
 requires_hermes: ">=0.21.6"
 version: "0.1.0"
+image: https://raw.githubusercontent.com/justrunme/hermes-airlock-plugin/86d342dace0280fcd867b3e135c0aa428a4c3c93/docs/img/banner.jpg
 docs_url: https://github.com/justrunme/hermes-airlock-plugin
 platforms:
   - linux
