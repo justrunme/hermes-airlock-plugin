@@ -1,7 +1,10 @@
 """HTTP client for the public Airlock API.
 
-Talks only to documented endpoints on an Airlock deployment:
-``/healthz``, ``/api/pubkey``, ``/api/arena``, ``/api/receipt/{id}``.
+Talks only to documented endpoints on a user-configured Airlock deployment:
+``/healthz``, ``/api/arena``, ``/api/receipt/{id}``.
+
+Redirects are disabled: a 3xx response fails closed so an HTTPS POST cannot be
+replayed onto another origin or downgraded to HTTP with the command body.
 """
 
 from __future__ import annotations
@@ -10,7 +13,7 @@ from typing import Any, Mapping, Optional
 
 import httpx
 
-DEFAULT_BASE_URL = "https://45-77-141-253.sslip.io"
+from .config import ConfigError, require_https_base_url
 
 
 class AirlockError(RuntimeError):
@@ -26,13 +29,16 @@ class AirlockClient:
 
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str,
         *,
         timeout_s: float = 60.0,
         api_token: Optional[str] = None,
         transport: Optional[httpx.BaseTransport] = None,
     ) -> None:
-        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        try:
+            self.base_url = require_https_base_url(base_url)
+        except ConfigError as e:
+            raise AirlockError(str(e)) from e
         headers: dict[str, str] = {"accept": "application/json"}
         if api_token:
             headers["authorization"] = f"Bearer {api_token}"
@@ -41,7 +47,8 @@ class AirlockClient:
             timeout=httpx.Timeout(timeout_s),
             headers=headers,
             transport=transport,
-            follow_redirects=True,
+            # Fail closed: never follow redirects (blocks HTTPS→HTTP downgrade of POST bodies).
+            follow_redirects=False,
         )
 
     def close(self) -> None:
@@ -58,6 +65,13 @@ class AirlockClient:
             response = self._client.request(method, path, **kwargs)
         except httpx.HTTPError as e:
             raise AirlockError(f"Airlock unreachable: {e}") from e
+        if 300 <= response.status_code < 400:
+            # Do not follow; do not forward the body elsewhere.
+            raise AirlockError(
+                f"Airlock returned redirect HTTP {response.status_code}; "
+                "redirects are refused (fail-closed, same-origin HTTPS only)",
+                status_code=response.status_code,
+            )
         try:
             data = response.json()
         except ValueError as e:
@@ -81,12 +95,6 @@ class AirlockClient:
             raise AirlockError("Airlock /healthz did not report ok=true")
         return data
 
-    def pubkey(self) -> dict[str, Any]:
-        data = self._request("GET", "/api/pubkey")
-        if not isinstance(data, dict) or not data.get("public_key_hex"):
-            raise AirlockError("Airlock /api/pubkey missing public_key_hex")
-        return data
-
     def arena(
         self,
         *,
@@ -95,7 +103,8 @@ class AirlockClient:
         input_text: str = "",
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"lang": lang, "code": code}
-        if input_text:
+        # Airlock maps input_text to sandbox file input.txt — not process stdin.
+        if input_text != "":
             body["input_text"] = input_text
         data = self._request("POST", "/api/arena", json=body)
         if not isinstance(data, dict):
@@ -107,6 +116,11 @@ class AirlockClient:
             response = self._client.get(f"/api/receipt/{receipt_id}")
         except httpx.HTTPError as e:
             raise AirlockError(f"Airlock unreachable: {e}") from e
+        if 300 <= response.status_code < 400:
+            raise AirlockError(
+                f"Airlock returned redirect HTTP {response.status_code}; redirects are refused",
+                status_code=response.status_code,
+            )
         if response.status_code >= 400:
             raise AirlockError(
                 f"Airlock HTTP {response.status_code} fetching receipt {receipt_id}",

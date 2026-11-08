@@ -2,16 +2,18 @@ name: airlock-sandbox
 label: Airlock Sandbox
 manifest_version: 2
 kind: backend
-version: 0.1.0
+version: 0.1.2
 author: Andrey Lesnikov
 license: MIT
 homepage: https://github.com/justrunme/hermes-airlock-plugin
 description: >
   Terminal backend that routes Hermes command execution through an external
   Airlock policy engine and disposable Docker sandbox, then surfaces
-  verifiable receipts (RFC 8785 JCS, SHA-256, Ed25519, prev_hash chain) with
+  verifiable receipts (RFC 8785 JCS, SHA-256, Ed25519) with
   BLOCKED / ALLOWED / VERIFIED status. Select with
   `hermes config set terminal.backend airlock_sandbox`.
+  Requires an explicit HTTPS base_url. When verify_receipts is true (default),
+  also requires a locally configured public_key_hex obtained out-of-band.
 requires_hermes: ">=0.21.6"
 platforms: [linux, macos, windows]
 tags: [terminal, sandbox, airlock, receipts, policy, ed25519]
@@ -26,9 +28,12 @@ python_dependencies:
 config_schema:
   base_url:
     type: str
-    default: "https://45-77-141-253.sslip.io"
+    default: ""
+    required: true
     label: Airlock base URL
-    description: "HTTPS base URL of the Airlock HTTP API (no trailing slash)."
+    description: >
+      Required HTTPS base URL of your Airlock HTTP API (no trailing slash).
+      There is no built-in default host; set this explicitly before use.
   timeout_s:
     type: int
     default: 60
@@ -38,12 +43,19 @@ config_schema:
     type: bool
     default: true
     label: Verify receipts
-    description: "Fail closed when a receipt hash or Ed25519 signature does not verify."
+    description: >
+      Fail closed when a receipt hash or Ed25519 signature does not verify.
+      When true, public_key_hex must be set locally (never fetched from the server).
   public_key_hex:
     type: str
     default: ""
+    required: false
     label: Airlock public key (hex)
-    description: "Optional Ed25519 public key hex. Empty means fetch /api/pubkey at runtime."
+    description: >
+      Ed25519 public key (64 lowercase hex chars) obtained out-of-band from an
+      operator you trust. Required at runtime when verify_receipts is true (the
+      default); unused for trust when verify_receipts is false. Never fetched
+      from the Airlock API at verify time.
   language:
     type: str
     choices: [bash, python]
@@ -55,4 +67,4 @@ config_schema:
     env: AIRLOCK_API_TOKEN
     required: false
     label: Airlock API token
-    description: "Optional bearer token for a private Airlock instance. Public demo needs none."
+    description: "Optional bearer token for a private Airlock instance."

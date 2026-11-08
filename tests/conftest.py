@@ -59,7 +59,7 @@ def _load_plugin_package():
     pkg.__path__ = [str(_ROOT)]
     sys.modules[PACKAGE] = pkg
 
-    for name in ("receipts", "client", "environment", "provider"):
+    for name in ("config", "receipts", "binding", "client", "environment", "provider"):
         importlib.import_module(f"{PACKAGE}.{name}")
 
     # Execute package __init__ (register is not called at import time).
@@ -104,8 +104,15 @@ def make_receipt(
     reason: str = "Safe pattern",
     rules_fired: list[str] | None = None,
     with_execution: bool = True,
+    stdout: str = "ok\n",
+    stderr: str = "",
+    exit_code: int = 0,
 ) -> dict[str, Any]:
-    """Build a minimally shaped, correctly signed Airlock-like receipt."""
+    """Build a minimally shaped, correctly signed Airlock-like receipt.
+
+    ``stdout``/``stderr``/``exit_code`` are hashed into the signed execution
+    record so arena step fixtures must present the same bytes to bind.
+    """
     body: dict[str, Any] = {
         "schema_v": 1,
         "receipt_v": 1,
@@ -142,11 +149,11 @@ def make_receipt(
             "runtime": "runsc",
             "started": "2026-11-06T00:00:00+00:00",
             "ended": "2026-11-06T00:00:01+00:00",
-            "exit_code": 0,
+            "exit_code": int(exit_code),
             "killed_by": None,
             "peak_mem_mb": None,
-            "stdout_sha256": sha256(b"ok\n").hexdigest(),
-            "stderr_sha256": sha256(b"").hexdigest(),
+            "stdout_sha256": sha256(stdout.encode("utf-8")).hexdigest(),
+            "stderr_sha256": sha256(stderr.encode("utf-8")).hexdigest(),
             "artifacts": [],
             "report_invalid": False,
             "stdout_truncated": False,
@@ -177,13 +184,25 @@ def make_receipt(
 def arena_step_from_receipt(
     receipt: dict[str, Any],
     *,
-    stdout: str = "ok\n",
-    stderr: str = "",
-    exit_code: int = 0,
+    stdout: str | None = None,
+    stderr: str | None = None,
+    exit_code: int | None = None,
+    code: str = "echo ok",
 ) -> dict[str, Any]:
+    """Build an outer arena step. For allow receipts, stdout/stderr/exit default
+    to values that match the signed execution digests (``ok\\n`` / ```` / ``0``
+    unless the receipt was built with other contents — pass them explicitly).
+    """
     verdict = receipt["decision"]["verdict"]
+    if stdout is None:
+        stdout = "ok\n"
+    if stderr is None:
+        stderr = ""
+    if exit_code is None:
+        signed = receipt.get("execution") or {}
+        exit_code = int(signed.get("exit_code") or 0) if verdict == "allow" else 0
     step: dict[str, Any] = {
-        "action": {"id": receipt["action_id"], "lang": "bash", "code": "echo ok"},
+        "action": {"id": receipt["action_id"], "lang": "bash", "code": code},
         "verdict": verdict,
         "rules_fired": list(receipt["decision"].get("rules_fired") or []),
         "reason": receipt["decision"].get("reason"),
