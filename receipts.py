@@ -1,8 +1,10 @@
-"""Airlock receipt verification: RFC 8785 JCS, SHA-256, Ed25519, prev_hash.
+"""Airlock receipt verification: RFC 8785 JCS, SHA-256, Ed25519.
 
 Implements the public verification contract used by Airlock's own verifier
-(strict JSON, canonical body excluding hash/sig, SHA-256, Ed25519). This module
-does not depend on the Airlock Python package; it talks to receipts as JSON.
+(strict JSON, canonical body excluding hash/sig, SHA-256, Ed25519). Optional
+``expected_prev_hash`` can enforce a single prev link when the caller already
+knows the accurate predecessor; this plugin does not maintain a shared-server
+chain itself. Does not depend on the Airlock Python package.
 """
 
 from __future__ import annotations

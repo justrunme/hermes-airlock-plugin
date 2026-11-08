@@ -1,6 +1,6 @@
 [project]
 name = "hermes-airlock-sandbox"
-version = "0.1.0"
+version = "0.1.2"
 description = "Hermes terminal backend that executes commands through Airlock with verifiable receipts"
 readme = "README.md"
 license = { text = "MIT" }
