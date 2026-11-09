@@ -154,6 +154,11 @@ hermes plugins validate . --install-deps
 
 Sample catalog entry (SHA placeholder): `catalog/airlock-sandbox.yaml`.
 
+## Author
+
+**Andrey Lesnikov** — Senior DevOps & AI Platform Engineer  
+ORCID: [https://orcid.org/0009-0004-7583-4314](https://orcid.org/0009-0004-7583-4314)
+
 ## License
 
 MIT. See `LICENSE`.
